@@ -1676,12 +1676,33 @@ else:
 # -----------------------------
 # 주차별 쇼핑몰 매출 (3주 비교)
 # -----------------------------
+def _mall_total_bar(wdf: pd.DataFrame) -> str:
+    """주차별 쇼핑몰 표 위에 얹는 고정 합계 바(전체 몰 합계: 수량·총매출·수익률).
+    표(스크롤 영역) 바깥에 있어 표를 스크롤해도 맨 위에 항상 보인다."""
+    q = pd.to_numeric(wdf.get("수량"), errors="coerce").fillna(0).sum() if "수량" in wdf.columns else 0
+    s = pd.to_numeric(wdf.get("최종판매가"), errors="coerce").fillna(0).sum() if "최종판매가" in wdf.columns else 0
+    p = (pd.to_numeric(wdf["수익원(실배송비)"], errors="coerce").fillna(0).sum()
+         if "수익원(실배송비)" in wdf.columns else 0.0)
+    r = (p / s * 100) if s else 0.0
+    return (
+        "<div style='display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;"
+        "background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;"
+        "padding:8px 12px;margin:0 0 8px 0;'>"
+        "<span style='font-weight:800;color:#1e3a8a;font-size:13px;'>합계</span>"
+        f"<span style='color:#334155;font-size:13px;'>수량 <b style='color:#0f172a;'>{num(q)}</b></span>"
+        f"<span style='color:#334155;font-size:13px;'>총매출 <b style='color:#0f172a;'>{num(s)}</b></span>"
+        f"<span style='color:#334155;font-size:13px;'>수익률 <b style='color:#0f172a;'>{pct(r)}</b></span>"
+        "</div>"
+    )
+
+
 st.markdown(f"<div class='section-title'>{PERIODLY} 쇼핑몰 매출 ({PERIOD_CMP})</div>", unsafe_allow_html=True)
 wcols = st.columns(len(week_order)) if week_order else [st]
 for col, wk in zip(wcols, week_order):
     with col:
         st.markdown(f"**{wk}**")
         wdf = f[f["주차"] == wk]
+        st.markdown(_mall_total_bar(wdf), unsafe_allow_html=True)  # 맨 위 고정 합계
         wt = aggregate(wdf, ["쇼핑몰"], metric_cols).head(30).reset_index(drop=True)
         wt = wt[["쇼핑몰", "수량", "최종판매가", "수익률"]]
         wt.insert(0, "Rank", np.arange(1, len(wt) + 1))
