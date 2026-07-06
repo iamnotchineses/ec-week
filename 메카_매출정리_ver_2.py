@@ -1487,7 +1487,7 @@ with st.sidebar:
     selected_brands = multiselect_all("브랜드", df["브랜드"].unique())
     selected_types = multiselect_all("공식/병행", df["공식/병행"].unique())
     selected_cats = multiselect_all("대분류", df["대분류"].unique())
-    selected_notes = multiselect_all("비고", df["비고"].unique())
+    selected_lines = multiselect_all("라인명", df["라인명"].unique())
 
     include_returns = st.checkbox("반품/음수 데이터 포함", value=True)
 
@@ -1497,7 +1497,7 @@ f = df[
     & df["브랜드"].isin(selected_brands)
     & df["공식/병행"].isin(selected_types)
     & df["대분류"].isin(selected_cats)
-    & df["비고"].isin(selected_notes)
+    & df["라인명"].isin(selected_lines)
 ].copy()
 
 # 화면에서 사용할 주차(시간순) 목록
