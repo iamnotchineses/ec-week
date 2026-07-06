@@ -1469,10 +1469,10 @@ with st.sidebar:
         df["주차"] = df["주시작"].dt.year.astype(int).astype(str) + "년 " + df["주시작"].dt.month.astype(int).astype(str) + "월"
     else:
         df["주시작"] = (df["날짜"] - pd.to_timedelta(df["날짜"].dt.weekday, unit="D")).dt.normalize()
-        _mon = df["주시작"]
-        _fw = _mon.dt.to_period("M").dt.start_time.dt.weekday
-        _wom = ((_mon.dt.day + _fw - 1) // 7 + 1).astype(int)
-        df["주차"] = _mon.dt.month.astype(int).astype(str) + "월 " + _wom.astype(str) + "주차"
+        # 주의 소속 월 = 그 주 '수요일'이 속한 달 (월~일 주에서 수요일 = 월요일 + 2일)
+        _wed = df["주시작"] + pd.Timedelta(days=2)
+        _wom = ((_wed.dt.day - 1) // 7 + 1).astype(int)  # 그 달의 n번째 수요일 = n주차
+        df["주차"] = _wed.dt.month.astype(int).astype(str) + "월 " + _wom.astype(str) + "주차"
     _wk = df[["주시작", "주차"]].dropna().drop_duplicates().sort_values("주시작")
     week_order_all = _wk["주차"].tolist()[-RECENT_WEEKS:]
     df_all = df.copy()  # 컷 전 전체(이번달 총 달성률 계산용)
