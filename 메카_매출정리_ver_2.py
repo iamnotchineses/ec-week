@@ -1487,7 +1487,6 @@ with st.sidebar:
     selected_brands = multiselect_all("브랜드", df["브랜드"].unique())
     selected_types = multiselect_all("공식/병행", df["공식/병행"].unique())
     selected_cats = multiselect_all("대분류", df["대분류"].unique())
-    selected_lines = multiselect_all("라인명", df["라인명"].unique())
 
     include_returns = st.checkbox("반품/음수 데이터 포함", value=True)
 
@@ -1497,7 +1496,6 @@ f = df[
     & df["브랜드"].isin(selected_brands)
     & df["공식/병행"].isin(selected_types)
     & df["대분류"].isin(selected_cats)
-    & df["라인명"].isin(selected_lines)
 ].copy()
 
 # 화면에서 사용할 주차(시간순) 목록
@@ -1825,6 +1823,36 @@ tabs = st.tabs(["쇼핑몰", "브랜드", "대분류", "모델", "요일"])
 specs = [("쇼핑몰", 50), ("브랜드", 50), ("대분류", 50), ("모델명", 100), ("요일", 7)]
 for tab, (group_col, topn) in zip(tabs, specs):
     with tab:
+        # ── 모델 탭: 라인명/모델명 검색 → 몰별 출고 상세 ─────────────
+        if group_col == "모델명":
+            _q = st.text_input("🔍 라인명/모델명 검색", key="model_line_search",
+                               placeholder="예: 1DR, X08004 … (부분 일치, 대소문자 무관)")
+            if _q.strip():
+                _ql = _q.strip().lower()
+                _hit = f[
+                    f["라인명"].astype(str).str.lower().str.contains(_ql, regex=False)
+                    | f["모델명"].astype(str).str.lower().str.contains(_ql, regex=False)
+                ].copy()
+                if _hit.empty:
+                    st.warning(f"'{_q}' 에 해당하는 라인명/모델명이 없습니다. (선택된 기간·필터 기준)")
+                else:
+                    _lines = sorted(_hit["라인명"].astype(str).replace({"": "미분류"}).unique())
+                    st.caption(f"검색 결과: 라인 **{len(_lines)}건** ({', '.join(_lines[:10])}"
+                               + (" …" if len(_lines) > 10 else "") + f") · 기간: 선택된 {PERIOD_AXIS} 전체")
+                    # 몰별 집계 (어느 몰에서 얼마나 팔렸는지)
+                    _mt = aggregate(_hit, ["쇼핑몰"], metric_cols).reset_index(drop=True)
+                    _mt.insert(0, "Rank", np.arange(1, len(_mt) + 1))
+                    st.markdown("**몰별 집계**")
+                    show_table(_mt, height=min(560, 60 + 35 * len(_mt)))
+                    # 출고 상세 (개별 판매 건)
+                    _dc = [c for c in ["날짜", "주차", "쇼핑몰", "브랜드", "모델명", "수량", "최종판매가", "수익원(실배송비)", "비고"] if c in _hit.columns]
+                    _dt = _hit[_dc].sort_values("날짜", ascending=False).reset_index(drop=True)
+                    _dt["판매단가"] = np.where(_dt["수량"] != 0, _dt["최종판매가"] / _dt["수량"], 0)
+                    _dt["날짜"] = _dt["날짜"].dt.strftime("%Y-%m-%d")
+                    st.markdown(f"**출고 상세** · {len(_dt):,}건 · 합계 {eok(_hit['최종판매가'].sum())} / {num(_hit['수량'].sum())}개")
+                    show_table(_dt, height=560)
+                st.divider()
+        # ── 기본 집계 표 ─────────────────────────────────────────
         src = fw_wd if group_col == "요일" else fw
         table = aggregate(src, [group_col], metric_cols).reset_index(drop=True)
         if group_col not in ("요일",):  # 요일 탭은 WoW 의미 없음
