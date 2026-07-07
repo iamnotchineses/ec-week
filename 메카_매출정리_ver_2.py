@@ -1823,21 +1823,26 @@ tabs = st.tabs(["상품검색", "쇼핑몰", "브랜드", "대분류", "요일"]
 specs = [("모델명", 100), ("쇼핑몰", 50), ("브랜드", 50), ("대분류", 50), ("요일", 7)]
 for tab, (group_col, topn) in zip(tabs, specs):
     with tab:
-        # ── 모델 탭: 라인명/모델명 검색 → 몰별 출고 상세 ─────────────
-        if group_col == "모델명":
-            _q = st.text_input("🔍 라인명/모델명 검색", key="model_line_search",
-                               placeholder="예: 1DR, X08004 … (부분 일치, 대소문자 무관)")
+        # ── 검색 (상품검색: 라인명/모델명 · 브랜드: 브랜드명) → 몰별 출고 상세 ──
+        _SEARCH_CFG = {
+            "모델명": ("🔍 라인명/모델명 검색", "예: 1DR, X08004 … (부분 일치, 대소문자 무관)", ["라인명", "모델명"]),
+            "브랜드": ("🔍 브랜드 검색", "예: DIESEL, AMI … (부분 일치, 대소문자 무관)", ["브랜드"]),
+        }
+        if group_col in _SEARCH_CFG:
+            _lbl, _ph, _scols = _SEARCH_CFG[group_col]
+            _q = st.text_input(_lbl, key=f"search_{group_col}", placeholder=_ph)
             if _q.strip():
                 _ql = _q.strip().lower()
-                _hit = f[
-                    f["라인명"].astype(str).str.lower().str.contains(_ql, regex=False)
-                    | f["모델명"].astype(str).str.lower().str.contains(_ql, regex=False)
-                ].copy()
+                _mask = pd.Series(False, index=f.index)
+                for _sc in _scols:
+                    _mask |= f[_sc].astype(str).str.lower().str.contains(_ql, regex=False)
+                _hit = f[_mask].copy()
                 if _hit.empty:
-                    st.warning(f"'{_q}' 에 해당하는 라인명/모델명이 없습니다. (선택된 기간·필터 기준)")
+                    st.warning(f"'{_q}' 에 해당하는 {'/'.join(_scols)}이(가) 없습니다. (선택된 기간·필터 기준)")
                 else:
-                    _lines = sorted(_hit["라인명"].astype(str).replace({"": "미분류"}).unique())
-                    st.caption(f"검색 결과: 라인 **{len(_lines)}건** ({', '.join(_lines[:10])}"
+                    _key = "라인명" if group_col == "모델명" else "브랜드"
+                    _lines = sorted(_hit[_key].astype(str).replace({"": "미분류"}).unique())
+                    st.caption(f"검색 결과: {_key} **{len(_lines)}건** ({', '.join(_lines[:10])}"
                                + (" …" if len(_lines) > 10 else "") + f") · 기간: 선택된 {PERIOD_AXIS} 전체")
                     # 몰별 집계 (어느 몰에서 얼마나 팔렸는지)
                     _mt = aggregate(_hit, ["쇼핑몰"], metric_cols).reset_index(drop=True)
