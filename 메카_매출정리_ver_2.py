@@ -1830,20 +1830,26 @@ for tab, (group_col, topn) in zip(tabs, specs):
         }
         if group_col in _SEARCH_CFG:
             _lbl, _ph, _scols = _SEARCH_CFG[group_col]
-            _q = st.text_input(_lbl, key=f"search_{group_col}", placeholder=_ph)
+            _c1, _c2 = st.columns([3, 1.2])
+            _q = _c1.text_input(_lbl, key=f"search_{group_col}", placeholder=_ph)
+            _only_this = _c2.checkbox(f"{THIS}만 표기", key=f"srch_thisweek_{group_col}",
+                                      help=f"체크 시 {THIS}({latest_week})만, 해제 시 최근 {TREND_N}")
             if _q.strip():
+                _scope_weeks = [latest_week] if _only_this else week_order[-3:]
+                _base = f[f["주차"].isin(_scope_weeks)]
+                _scope_lbl = f"{THIS}({latest_week})" if _only_this else f"최근 {TREND_N} ({', '.join(_scope_weeks)})"
                 _ql = _q.strip().lower()
-                _mask = pd.Series(False, index=f.index)
+                _mask = pd.Series(False, index=_base.index)
                 for _sc in _scols:
-                    _mask |= f[_sc].astype(str).str.lower().str.contains(_ql, regex=False)
-                _hit = f[_mask].copy()
+                    _mask |= _base[_sc].astype(str).str.lower().str.contains(_ql, regex=False)
+                _hit = _base[_mask].copy()
                 if _hit.empty:
-                    st.warning(f"'{_q}' 에 해당하는 {'/'.join(_scols)}이(가) 없습니다. (선택된 기간·필터 기준)")
+                    st.warning(f"'{_q}' 에 해당하는 {'/'.join(_scols)}이(가) 없습니다. ({_scope_lbl} 기준)")
                 else:
                     _key = "라인명" if group_col == "모델명" else "브랜드"
                     _lines = sorted(_hit[_key].astype(str).replace({"": "미분류"}).unique())
                     st.caption(f"검색 결과: {_key} **{len(_lines)}건** ({', '.join(_lines[:10])}"
-                               + (" …" if len(_lines) > 10 else "") + f") · 기간: 선택된 {PERIOD_AXIS} 전체")
+                               + (" …" if len(_lines) > 10 else "") + f") · 기간: {_scope_lbl}")
                     # 몰별 집계 (어느 몰에서 얼마나 팔렸는지)
                     _mt = aggregate(_hit, ["쇼핑몰"], metric_cols).reset_index(drop=True)
                     _mt.insert(0, "Rank", np.arange(1, len(_mt) + 1))
