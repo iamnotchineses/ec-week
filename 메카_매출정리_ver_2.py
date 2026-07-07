@@ -1832,7 +1832,7 @@ for tab, (group_col, topn) in zip(tabs, specs):
             _lbl, _ph, _scols = _SEARCH_CFG[group_col]
             _c1, _c2 = st.columns([3, 1.2])
             _q = _c1.text_input(_lbl, key=f"search_{group_col}", placeholder=_ph)
-            _only_this = _c2.checkbox(f"{THIS}만 표기", key=f"srch_thisweek_{group_col}",
+            _only_this = _c2.checkbox(f"{THIS}만 표기", value=True, key=f"srch_thisweek_{group_col}",
                                       help=f"체크 시 {THIS}({latest_week})만, 해제 시 최근 {TREND_N}")
             if _q.strip():
                 _scope_weeks = [latest_week] if _only_this else week_order[-3:]
